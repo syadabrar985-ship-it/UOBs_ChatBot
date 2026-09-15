@@ -1,8 +1,7 @@
 import os
 import streamlit as st
 from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 # 1. Page Configuration & Responsive UI Layout
 st.set_page_config(
@@ -11,7 +10,6 @@ st.set_page_config(
     layout="centered"
 )
 
-# Custom Styling for a friendly, modern look
 st.markdown("""
     <style>
     .main-header {
@@ -45,7 +43,7 @@ if not api_key:
     st.stop()
 
 # 3. Initialize High-Speed Groq Model
-@st.resource if hasattr(st, 'resource') else st.cache_resource
+@st.cache_resource
 def get_llm():
     return ChatGroq(
         model="llama-3.3-70b-versatile",
@@ -55,33 +53,27 @@ def get_llm():
 
 llm = get_llm()
 
-# 4. Built-in UoBS Knowledge Base & System Prompt
-uobs_system_prompt = (
+# Built-in UoBS Knowledge Base System Prompt
+uobs_system_message = SystemMessage(content=(
     "You are the official virtual assistant for the University of Baltistan, Skardu (UoBS). "
     "You are friendly, polite, helpful, and professional. "
     "Here is core background information about UoBS to help you answer questions:\n"
     "- Name: University of Baltistan, Skardu (UoBS), a chartered public university recognized by the HEC of Pakistan.\n"
-    "- Location: Main Campus, Skardu, Gilgit-Baltistan, Pakistan.\n"
+    "- Location: Main Campus, Hussainabad / Skardu, Gilgit-Baltistan, Pakistan.\n"
+    "- First/Founding Vice Chancellor: Prof. Dr. Muhammad Naeem Khan was appointed as the first Vice-Chancellor. The current Vice Chancellor is Prof. Dr. Masood Akhtar.\n"
     "- Key Faculties: Faculty of Natural Sciences & Technologies, Faculty of Life Sciences, and Faculty of Humanities & Social Sciences.\n"
     "- Popular Programs: BS Computer Science (BSCS), BS Software Engineering, and various undergraduate/graduate programs.\n"
     "- Portal Purpose: Assisting students with academic inquiries, department info, schedules, and general guidance.\n\n"
     "Always maintain a welcoming tone tailored for students and faculty members. If a user asks something outside your knowledge, guide them politely to check the official UoBS portal or administration office."
-)
+))
 
-prompt = ChatPromptTemplate.from_messages([
-    ("system", uobs_system_prompt),
-    ("human", "{input}"),
-])
-
-chain = prompt | llm | StrOutputParser()
-
-# 5. Chat Session State Management
+# 4. Chat Session State Management
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": "Assalam-o-Alaikum! Welcome to the University of Baltistan portal assistant. How can I help you today?"}
     ]
 
-# Render Quick Suggestion Buttons for Easy User Interaction
+# Render Quick Suggestion Buttons
 col1, col2, col3 = st.columns(3)
 with col1:
     if st.button("💻 Computing Programs"):
@@ -98,7 +90,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 6. Chat Input Field
+# 5. Chat Input Field & Message Handling
 if user_query := st.chat_input("Ask a question about UoBS (e.g., admissions, courses, campus)..."):
     st.session_state.messages.append({"role": "user", "content": user_query})
     with st.chat_message("user"):
@@ -107,10 +99,19 @@ if user_query := st.chat_input("Ask a question about UoBS (e.g., admissions, cou
     with st.chat_message("assistant"):
         with st.spinner("💭 Thinking..."):
             try:
-                response = chain.invoke({"input": user_query})
-                st.markdown(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                # Build message history for context
+                chat_history = [uobs_system_message]
+                for msg in st.session_state.messages:
+                    if msg["role"] == "user":
+                        chat_history.append(HumanMessage(content=msg["content"]))
+                    else:
+                        chat_history.append(AIMessage(content=msg["content"]))
+                
+                response = llm.invoke(chat_history)
+                answer = response.content
+                st.markdown(answer)
+                st.session_state.messages.append({"role": "assistant", "content": answer})
             except Exception as e:
-                error_msg = "I encountered a minor connection issue. Please try your query again!"
+                error_msg = f"An error occurred: {str(e)}"
                 st.error(error_msg)
                 st.session_state.messages.append({"role": "assistant", "content": error_msg})
