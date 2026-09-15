@@ -42,11 +42,11 @@ if not api_key:
     st.warning("⚠️ Please configure your `GROQ_API_KEY` in Streamlit Secrets (`.streamlit/secrets.toml`) or environment variables.")
     st.stop()
 
-# 3. Initialize High-Speed Groq Model
+# 3. Initialize High-Speed Groq Model (Using standard accessible model)
 @st.cache_resource
 def get_llm():
     return ChatGroq(
-        model="llama-3.3-70b-versatile",
+        model="llama-3.1-8b-instant",
         temperature=0.3,
         groq_api_key=api_key
     )
@@ -60,7 +60,7 @@ uobs_system_message = SystemMessage(content=(
     "Here is core background information about UoBS to help you answer questions:\n"
     "- Name: University of Baltistan, Skardu (UoBS), a chartered public university recognized by the HEC of Pakistan.\n"
     "- Location: Main Campus, Hussainabad / Skardu, Gilgit-Baltistan, Pakistan.\n"
-    "- First/Founding Vice Chancellor: Prof. Dr. Muhammad Naeem Khan was appointed as the first Vice-Chancellor. The current Vice Chancellor is Prof. Dr. Masood Akhtar.\n"
+    "- Founding Vice Chancellor: Prof. Dr. Muhammad Naeem Khan was appointed as the founding Vice-Chancellor. The current Vice Chancellor is Prof. Dr. Masood Akhtar.\n"
     "- Key Faculties: Faculty of Natural Sciences & Technologies, Faculty of Life Sciences, and Faculty of Humanities & Social Sciences.\n"
     "- Popular Programs: BS Computer Science (BSCS), BS Software Engineering, and various undergraduate/graduate programs.\n"
     "- Portal Purpose: Assisting students with academic inquiries, department info, schedules, and general guidance.\n\n"
@@ -99,7 +99,7 @@ if user_query := st.chat_input("Ask a question about UoBS (e.g., admissions, cou
     with st.chat_message("assistant"):
         with st.spinner("💭 Thinking..."):
             try:
-                # Build message history for context
+                # Build message history for conversational context
                 chat_history = [uobs_system_message]
                 for msg in st.session_state.messages:
                     if msg["role"] == "user":
